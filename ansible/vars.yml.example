@@ -1,0 +1,80 @@
+---
+# MariaDB Configuration
+# SECURITY: Change this to a strong password before deployment
+mariadb_root_password: "CHANGE_ME_strong_root_password_here"
+
+# QBCore Database Configuration
+qbcore_db_name: "qbcore"
+qbcore_db_user: "qbcore_user"
+# SECURITY: Change this to a strong password before deployment
+qbcore_db_password: "CHANGE_ME_strong_database_password_here"
+
+# Remote Access Configuration
+# WARNING: Only enable if you need remote database access
+enable_remote_access: false
+
+# Firewall Configuration
+# Recommended: keep enabled for security
+configure_firewall: true
+
+# FiveM Server Configuration
+fivem_user: "fivem"
+fivem_server_path: "/opt/fivem"
+
+# FiveM Artifacts Download
+# Set to true to download FiveM artifacts during installation
+download_artifacts: true
+# Get latest artifact URL from: https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/
+fivem_artifact_url: "https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/LATEST_ARTIFACT_URL_HERE"
+
+# FiveM Server Configuration
+# Get your license key from: https://keymaster.fivem.net/
+fivem_license_key: "CHANGE_ME_your_fivem_license_key_here"
+
+# Server Display Settings
+server_name: "Your QBCore Server Name"
+server_project_name: "[QBCore] Your Server"
+server_description: "An advanced FiveM RP framework including jobs, gangs, housing & more!"
+server_tags: "qbcore, roleplay, jobs, gangs"
+server_locale: "en-US"  # Language code (en-US, pt-BR, es-ES, etc.)
+server_logo: "myLogo.png"
+server_port: "30120"
+max_clients: "48"
+game_build: "3095"  # Current DLC: The Chop Shop
+
+# Steam Web API Key (optional, for Steam authentication)
+# Get from: https://steamcommunity.com/dev/apikey
+steam_web_api_key: "CHANGE_ME_optional_steam_api_key"
+
+# Voice Chat Configuration
+voice_use_native_audio: true
+voice_use_sending_range: true
+voice_default_cycle: "GRAVE"
+voice_default_volume: "0.3"
+voice_enable_radio_anim: 1
+voice_sync_data: 1
+
+# QBCore Settings
+qb_locale: "en"  # QBCore language (en, pt-br, es, fr, etc.)
+qb_use_target: false  # Enable qb-target instead of markers
+
+# Admin Identifiers
+# Add server administrators here
+admin_identifiers:
+  - type: "fivem"  # Can be: fivem, steam, license, discord
+    id: "YOUR_FIVEM_ID_HERE"
+    name: "Your Name"
+  # - type: "steam"
+  #   id: "YOUR_STEAM_HEX"
+  #   name: "Second Admin"
+
+# Database Connection String (auto-generated from above values)
+# You typically don't need to change this
+mysql_connection_string: "mysql://{{ qbcore_db_user }}:{{ qbcore_db_password }}@localhost/{{ qbcore_db_name }}?charset=utf8mb4"
+
+# Git Repository Configuration (for submodules approach)
+# Set to false to use the old txAdmin recipe download method
+use_git_submodules: true
+# IMPORTANT: Update this to your repository URL
+qbcore_repo_url: "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git"
+qbcore_repo_branch: "main"

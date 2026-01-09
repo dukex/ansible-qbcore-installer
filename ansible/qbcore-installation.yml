@@ -1,0 +1,549 @@
+---
+- name: Install and Configure QBCore FiveM Server on Linux
+  hosts: qbcore_servers
+  become: true
+  vars_files:
+    - vars.yml
+
+  handlers:
+    - name: restart mariadb
+      systemd:
+        name: mariadb
+        state: restarted
+
+    - name: restart fivem service
+      systemd:
+        name: fivem
+        state: restarted
+
+  tasks:
+    # Step 1: System Update
+    - name: "Step 1: Update system packages"
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    # Step 2: Install Dependencies
+    - name: "Step 2: Install essential packages"
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - unzip
+          - rsync
+          - software-properties-common
+          - build-essential
+        state: present
+
+    - name: Add NodeSource repository for Node.js
+      shell: curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+      changed_when: false
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Verify Node.js installation
+      shell: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Display Node.js version
+      debug:
+        msg: "Node.js version: {{ node_version.stdout }}"
+
+    # Step 3: Database Installation
+    - name: "Step 3: Install MariaDB server"
+      apt:
+        name:
+          - mariadb-server
+          - mariadb-client
+        state: present
+
+    - name: Install PyMySQL for Ansible MySQL modules
+      apt:
+        name: python3-pymysql
+        state: present
+
+    - name: Ensure MariaDB is running
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Check if root password is already set
+      shell: mysql -u root -e "SELECT 1" 2>&1 | grep -q "Access denied"
+      register: mysql_root_password_set
+      failed_when: false
+      changed_when: false
+
+    - name: Set MariaDB root password (fresh install)
+      mysql_user:
+        name: root
+        password: "{{ mariadb_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        state: present
+      when: mysql_root_password_set.rc != 0
+
+    - name: Remove anonymous users
+      mysql_user:
+        name: ""
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+      ignore_errors: yes
+
+    - name: Remove test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+      ignore_errors: yes
+
+    - name: Disallow root login remotely
+      mysql_query:
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+        query: DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+      ignore_errors: yes
+
+    - name: Create QBCore database
+      mysql_db:
+        name: "{{ qbcore_db_name }}"
+        state: present
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+
+    - name: Create QBCore database user
+      mysql_user:
+        name: "{{ qbcore_db_user }}"
+        password: "{{ qbcore_db_password }}"
+        host: "{{ 'localhost' if not enable_remote_access else '%' }}"
+        priv: "{{ qbcore_db_name }}.*:ALL,GRANT"
+        state: present
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+
+    - name: Configure MariaDB for remote access
+      lineinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        regexp: "^bind-address"
+        line: "bind-address = 0.0.0.0"
+        backup: yes
+      notify: restart mariadb
+      when: enable_remote_access
+
+    - name: Configure MariaDB for optimal performance
+      lineinfile:
+        path: /etc/mysql/mariadb.conf.d/50-server.cnf
+        line: "{{ item }}"
+        insertafter: "^\\[mysqld\\]"
+      loop:
+        - "innodb_buffer_pool_size = 1G"
+        - "innodb_log_file_size = 256M"
+        - "max_connections = 200"
+        - "query_cache_size = 64M"
+        - "query_cache_type = 1"
+      notify: restart mariadb
+
+    - name: Install MariaDB server
+      apt:
+        name: mariadb-server
+        state: present
+
+    # Step 4: Clone QBCore Repository with Resources
+    - name: "Step 4: Create FiveM user"
+      user:
+        name: "{{ fivem_user }}"
+        shell: /bin/false
+        create_home: no
+        state: present
+
+    - name: "Step 4: Clone QBCore repository with submodules"
+      git:
+        repo: "{{ qbcore_repo_url }}"
+        dest: "{{ fivem_server_path }}/txData/server"
+        version: "{{ qbcore_repo_branch | default('main') }}"
+        update: yes
+        force: yes
+      become_user: "{{ fivem_user }}"
+      when: use_git_submodules | default(true)
+
+    - name: Initialize and update git submodules
+      shell: |
+        cd {{ fivem_server_path }}/txData/server
+        git submodule update --init --recursive
+      become_user: "{{ fivem_user }}"
+      when: use_git_submodules | default(true)
+
+    - name: Remove [gameplay]/chat from cfx-default resources
+      file:
+        path: "{{ fivem_server_path }}/txData/server/resources/[cfx-default]/[gameplay]/chat"
+        state: absent
+      when: use_git_submodules | default(true)
+
+    # Step 5: Download Non-Git Resources
+    - name: "Step 5: Create temporary download directory"
+      file:
+        path: "{{ fivem_server_path }}/tmp"
+        state: directory
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0755"
+
+    - name: Download oxmysql release
+      get_url:
+        url: "https://github.com/overextended/oxmysql/releases/download/v2.12.0/oxmysql.zip"
+        dest: "{{ fivem_server_path }}/tmp/oxmysql.zip"
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+
+    - name: Extract oxmysql to standalone resources
+      unarchive:
+        src: "{{ fivem_server_path }}/tmp/oxmysql.zip"
+        dest: "{{ fivem_server_path }}/txData/server/resources/[standalone]/"
+        remote_src: yes
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+      when: use_git_submodules | default(true)
+
+    # Step 6: Apply Local Modifications Overlay
+    - name: "Step 6: Check if local modifications exist"
+      stat:
+        path: "{{ fivem_server_path }}/txData/server/txData/server/resources-local"
+      register: resources_local_dir
+
+    - name: Apply local modifications overlay
+      shell: |
+        if [ -d "{{ fivem_server_path }}/txData/server/txData/server/resources-local" ]; then
+          rsync -av --exclude='.gitkeep' --exclude='README.md' \
+            {{ fivem_server_path }}/txData/server/txData/server/resources-local/ \
+            {{ fivem_server_path }}/txData/server/txData/server/resources/
+          echo "Local modifications applied"
+        else
+          echo "No local modifications found"
+        fi
+      become_user: "{{ fivem_user }}"
+      register: overlay_result
+      changed_when: "'Local modifications applied' in overlay_result.stdout"
+      when: use_git_submodules | default(true)
+
+    - name: Display overlay result
+      debug:
+        msg: "{{ overlay_result.stdout }}"
+      when: use_git_submodules | default(true)
+
+    # Step 7: Import QBCore Database Schema
+    - name: "Step 7: Check if qbcore.sql exists in repository"
+      stat:
+        path: "{{ fivem_server_path }}/txData/server/txData/server/qbcore.sql"
+      register: qbcore_sql_file
+
+    - name: Import QBCore database schema
+      mysql_db:
+        name: "{{ qbcore_db_name }}"
+        state: import
+        target: "{{ fivem_server_path }}/txData/server/txData/server/qbcore.sql"
+        login_user: root
+        login_password: "{{ mariadb_root_password }}"
+      when: qbcore_sql_file.stat.exists
+      ignore_errors: yes
+
+    - name: Display database import status
+      debug:
+        msg: "Database schema imported from repository"
+      when: qbcore_sql_file.stat.exists
+
+    # Step 8: Configure Server Files
+    - name: "Step 8: Create server-data directory"
+      file:
+        path: "{{ fivem_server_path }}/server-data"
+        state: directory
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0755"
+
+    - name: Template server.cfg from vars.yml
+      template:
+        src: "../server.cfg.example"
+        dest: "{{ fivem_server_path }}/server-data/server.cfg"
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0644"
+        backup: yes
+
+    - name: Copy templated server.cfg to repository
+      copy:
+        src: "{{ fivem_server_path }}/server-data/server.cfg"
+        dest: "{{ fivem_server_path }}/txData/server/server.cfg"
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0644"
+        remote_src: yes
+
+    - name: Create symlink from resources to server-data
+      file:
+        src: "{{ fivem_server_path }}/txData/server/resources"
+        dest: "{{ fivem_server_path }}/server-data/resources"
+        state: link
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        force: yes
+      when: use_git_submodules | default(true)
+
+    - name: Set correct permissions for all FiveM files
+      file:
+        path: "{{ fivem_server_path }}"
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        recurse: yes
+      when: use_git_submodules | default(true)
+
+    # Step 9: Download FiveM Server
+    - name: "Step 4: Create FiveM server directory"
+      file:
+        path: "{{ fivem_server_path }}"
+        state: directory
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0755"
+
+    - name: Download FiveM artifacts
+      get_url:
+        url: "{{ fivem_artifact_url }}"
+        dest: "{{ fivem_server_path }}/fx.tar.xz"
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+      when: download_artifacts
+
+    - name: Extract FiveM artifacts
+      unarchive:
+        src: "{{ fivem_server_path }}/fx.tar.xz"
+        dest: "{{ fivem_server_path }}"
+        remote_src: yes
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+      when: download_artifacts
+
+    - name: Make run.sh executable
+      file:
+        path: "{{ fivem_server_path }}/run.sh"
+        mode: "0755"
+      when: download_artifacts
+
+    # Step 5: Install txAdmin (included with FiveM artifacts)
+    # - name: "Step 5: Copy server.cfg from base directory"
+    #   copy:
+    #     src: txData/server/server.cfg
+    #     dest: "{{ fivem_server_path }}/server.cfg"
+    #     owner: "{{ fivem_user }}"
+    #     group: "{{ fivem_user }}"
+    #     mode: "0644"
+
+    - name: Create txAdmin startup script
+      copy:
+        dest: "{{ fivem_server_path }}/start.sh"
+        content: |
+          #!/bin/bash
+          cd {{ fivem_server_path }}
+          ./run.sh +exec server.cfg
+        owner: "{{ fivem_user }}"
+        group: "{{ fivem_user }}"
+        mode: "0755"
+
+    # Step 6-7: Configure Firewall
+    - name: Remove iptables-persistent to avoid conflicts
+      apt:
+        name: iptables-persistent
+        state: absent
+        purge: yes
+      when: configure_firewall
+      ignore_errors: yes
+
+    - name: Flush iptables before UFW setup
+      shell: |
+        iptables -F
+        iptables -X
+        iptables -P INPUT ACCEPT
+        iptables -P FORWARD ACCEPT
+        iptables -P OUTPUT ACCEPT
+      when: configure_firewall
+      ignore_errors: yes
+
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+      when: configure_firewall
+
+    - name: Reset UFW to defaults
+      ufw:
+        state: reset
+      when: configure_firewall
+
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+      when: configure_firewall
+
+    - name: Allow MySQL/MariaDB through UFW
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+      when: configure_firewall and enable_remote_access
+
+    - name: Allow FiveM TCP port
+      ufw:
+        rule: allow
+        port: "30120"
+        proto: tcp
+      when: configure_firewall
+
+    - name: Allow FiveM UDP port
+      ufw:
+        rule: allow
+        port: "30120"
+        proto: udp
+      when: configure_firewall
+
+    - name: Allow txAdmin port
+      ufw:
+        rule: allow
+        port: "40120"
+        proto: tcp
+      when: configure_firewall
+
+    - name: Set UFW default policies
+      ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: "incoming", policy: "deny" }
+        - { direction: "outgoing", policy: "allow" }
+      when: configure_firewall
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+      when: configure_firewall
+
+    # Step 10: Create System Service
+    - name: "Step 10: Create FiveM systemd service file"
+      copy:
+        dest: /etc/systemd/system/fivem.service
+        content: |
+          [Unit]
+          Description=FiveM Server
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ fivem_user }}
+          WorkingDirectory={{ fivem_server_path }}
+          ExecStart={{ fivem_server_path }}/run.sh +exec server.cfg
+          Restart=always
+          RestartSec=10
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: "0644"
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Ensure FiveM service is enabled
+      systemd:
+        name: fivem
+        enabled: yes
+        state: stopped
+      register: service_status
+
+    # Step 10: Performance Optimization
+    - name: "Step 10: Configure system file limits"
+      lineinfile:
+        path: /etc/security/limits.conf
+        line: "{{ item }}"
+      loop:
+        - "* soft nofile 65536"
+        - "* hard nofile 65536"
+      notify: restart fivem service
+
+    - name: Configure network optimization
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      loop:
+        - { name: "net.core.rmem_max", value: "26214400" }
+        - { name: "net.core.rmem_default", value: "26214400" }
+        - { name: "net.core.wmem_max", value: "26214400" }
+        - { name: "net.core.wmem_default", value: "26214400" }
+        - { name: "net.ipv4.tcp_max_syn_backlog", value: "5000" }
+
+    # Cleanup and Display Results
+    - name: Cleanup FiveM artifacts file
+      file:
+        path: "{{ fivem_server_path }}/fx.tar.xz"
+        state: absent
+      when: download_artifacts
+
+    - name: Display installation summary
+      debug:
+        msg:
+          - "╔════════════════════════════════════════════════════════════╗"
+          - "║     QBCore FiveM Server Installation Complete!            ║"
+          - "╚════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Installation Details:"
+          - "  FiveM Server Path: {{ fivem_server_path }}"
+          - "  FiveM User: {{ fivem_user }}"
+          - "  Database: {{ qbcore_db_name }}"
+          - "  Database User: {{ qbcore_db_user }}"
+          - "  MariaDB Enabled: yes"
+          - "  Firewall Enabled: {{ configure_firewall }}"
+          - ""
+          - "Next Steps:"
+          - "1. Start the FiveM service:"
+          - "   sudo systemctl start fivem"
+          - ""
+          - "2. Access txAdmin in your browser:"
+          - "   http://YOUR_SERVER_IP:40120"
+          - ""
+          - "3. Follow the txAdmin setup wizard:"
+          - "   - Create admin password"
+          - "   - Link your FiveM account"
+          - "   - Select 'QBCore Framework' template"
+          - "   - Enter license key from https://keymaster.fivem.net/"
+          - ""
+          - "4. Check service status:"
+          - "   sudo systemctl status fivem"
+          - ""
+          - "5. View real-time logs:"
+          - "   sudo journalctl -u fivem -f"
+          - ""
+          - "Important Files:"
+          - "  Server config: {{ fivem_server_path }}/server-data/server.cfg"
+          - "  Startup script: {{ fivem_server_path }}/start.sh"
+          - "  Service file: /etc/systemd/system/fivem.service"
+          - ""
+          - "Security Reminders:"
+          - "  - Change mariadb_root_password in vars.yml"
+          - "  - Change qbcore_db_password in vars.yml"
+          - "  - Set up SSH key authentication"
+          - "  - Configure fail2ban for brute-force protection"
+          - ""
+          - "Documentation: https://qbcore.net/docs/installation/linux"
+          - "═══════════════════════════════════════════════════════════"

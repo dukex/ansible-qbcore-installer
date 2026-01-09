@@ -1,0 +1,80 @@
+#   ____  ____   _____
+#  / __ \|  _ \ / ____|
+# | |  | | |_) | |     ___  _ __ ___
+# | |  | |  _ <| |    / _ \| '__/ _ \
+# | |__| | |_) | |___| (_) | | |  __/
+#  \___\_\____/ \_____\___/|_|  \___|
+
+## FiveM Documentation
+## https://aka.cfx.re/server-commands
+
+## QBCore Documentation
+## https://docs.qbcore.org
+
+## You CAN edit the following:
+endpoint_add_tcp "0.0.0.0:{{ server_port | default('30120') }}"
+endpoint_add_udp "0.0.0.0:{{ server_port | default('30120') }}"
+sv_maxclients {{ max_clients | default('48') }}
+set steam_webApiKey "{{ steam_web_api_key | default('CHANGE_ME_GET_FROM_https://steamcommunity.com/dev/apikey') }}"
+sets tags "{{ server_tags | default('qbcore, roleplay') }}"
+
+## You MAY edit the following:
+sv_licenseKey "{{ fivem_license_key }}"
+sv_hostname "{{ server_name }}"
+sets sv_projectName "{{ server_project_name | default('[QBCore Framework] ' + server_name) }}"
+sets sv_projectDesc "{{ server_description | default('An advanced FiveM RP framework including jobs, gangs, housing & more!') }}"
+sets locale "{{ server_locale | default('en-US') }}" # Language and location code
+load_server_icon {{ server_logo | default('myLogo.png') }}
+sv_enforceGameBuild {{ game_build | default('3095') }} # DLC The Chop Shop
+set resources_useSystemChat true
+set mysql_connection_string "{{ mysql_connection_string }}"
+
+# Voice config
+setr voice_useNativeAudio {{ voice_use_native_audio | default('true') }}
+setr voice_useSendingRangeOnly {{ voice_use_sending_range | default('true') }}
+setr voice_defaultCycle "{{ voice_default_cycle | default('GRAVE') }}"
+setr voice_defaultVolume {{ voice_default_volume | default('0.3') }}
+setr voice_enableRadioAnim {{ voice_enable_radio_anim | default('1') }}
+setr voice_syncData {{ voice_sync_data | default('1') }}
+
+# QBCore locale config
+setr qb_locale "{{ qb_locale | default('en') }}"
+
+# QBCore UseTarget
+setr UseTarget {{ qb_use_target | default('false') }}
+
+# These resources will start by default.
+ensure mapmanager
+ensure chat
+ensure spawnmanager
+ensure sessionmanager
+ensure basic-gamemode
+ensure hardcap
+ensure baseevents
+
+# QBCore & Extra stuff
+ensure qb-core
+ensure [qb]
+ensure [standalone]
+ensure [voice]
+ensure [defaultmaps]
+
+## Permissions ##
+add_ace group.admin command allow # allow all commands
+
+# Add your admin identifiers here:
+# add_principal identifier.fivem:YOUR_FIVEM_ID group.admin
+{% for admin in admin_identifiers | default([]) %}
+add_principal identifier.{{ admin.type }}:{{ admin.id }} group.admin # {{ admin.name | default('Admin') }}
+{% endfor %}
+
+# Resources
+add_ace resource.qb-core command allow # Allow qb-core to execute commands
+
+# Gods
+add_ace qbcore.god command allow # Allow all commands
+
+# Inheritance
+add_principal qbcore.god group.admin # Allow gods access to the main admin group used to get all default permissions
+add_principal qbcore.god qbcore.admin # Allow gods access to admin commands
+add_principal qbcore.admin qbcore.mod # Allow admins access to mod commands
