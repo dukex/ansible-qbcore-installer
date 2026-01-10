@@ -1,6 +1,6 @@
 # QBCore FiveM Server - Automated Deployment
 
-Production-ready Ansible automation for deploying QBCore FiveM servers on Debian/Ubuntu Linux with git submodules for resource management.
+Ansible automation for deploying QBCore FiveM servers on Debian/Ubuntu Linux with git submodules for resource management.
 
 ## 🚀 Features
 
