@@ -65,8 +65,8 @@ Production Server
 
 ```bash
 # Fork on GitHub first, then:
-git clone https://github.com/YOUR_USERNAME/prdx-server.git
-cd prdx-server
+git clone https://github.com/dukex/ansible-qbcore-installer/.git
+cd ansible-qbcore-installer
 ```
 
 ### 2. Configure Inventory
@@ -393,7 +393,7 @@ This project is open source and available under the MIT License.
 
 ## 📞 Support
 
-- Issues: [GitHub Issues](https://github.com/YOUR_USERNAME/prdx-server/issues)
+- Issues: [GitHub Issues](https://github.com/dukex/ansible-qbcore-installer/issues)
 - QBCore Discord: [QBCore Community](https://discord.gg/qbcore)
 - FiveM Forums: [forum.cfx.re](https://forum.cfx.re/)
 
