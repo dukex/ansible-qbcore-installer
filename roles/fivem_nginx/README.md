@@ -17,7 +17,7 @@ Configures Nginx as a reverse proxy for FiveM with TCP/UDP stream support, SSL/T
 ```yaml
 fivem_nginx_domain: "example.com"
 fivem_nginx_public_port: 30120
-fivem_server_port: 30120
+fivem_server_port: 30122
 fivem_txadmin_port: 40120
 fivem_nginx_cache_path: "/var/cache/nginx/fivem"
 fivem_nginx_cache_size: "20g"

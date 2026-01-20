@@ -60,11 +60,68 @@
     - deploy
     - deploy_data
 
+- name: Check last deployed version
+  stat:
+    path: "{{ server_data_folder }}/.deployed_sha"
+  register: deployed_sha_file
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
+- name: Read last deployed SHA
+  slurp:
+    src: "{{ server_data_folder }}/.deployed_sha"
+  register: last_deployed_sha
+  when: deployed_sha_file.stat.exists
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
+- name: Get remote SHA for requested revision
+  command: git ls-remote {{ resources_git_url }} {{ revision }}
+  register: remote_sha_result
+  changed_when: false
+  when: resources_git_url | length > 0
+  environment:
+    GIT_SSH_COMMAND: "ssh -i {{ git_deploy_key_path }} -o StrictHostKeyChecking=accept-new"
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
+- name: Set remote SHA fact
+  set_fact:
+    remote_sha: "{{ remote_sha_result.stdout.split()[0] | default('') }}"
+  when: remote_sha_result is defined and remote_sha_result.stdout | default('') | length > 0
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
+- name: Set deployment needed fact
+  set_fact:
+    deployment_needed: "{{ not deployed_sha_file.stat.exists or (last_deployed_sha.content | default('') | b64decode | trim) != (remote_sha | default('')) }}"
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
+- name: Display deployment status
+  debug:
+    msg: "{{ 'Deployment needed - version changed or first deploy' if deployment_needed else 'Skipping deployment - version unchanged (' + (remote_sha | default('unknown')) + ')' }}"
+  tags:
+    - resources
+    - deploy
+    - deploy_data
+
 - name: Create temporary file
   ansible.builtin.tempfile:
     state: directory
     suffix: temp
   register: tempdir
+  when: deployment_needed
   tags:
     - resources
     - deploy
@@ -72,7 +129,7 @@
 
 - name: Checkout or update server data repository
   git:
-    repo: "{{ git_repo_data }}"
+    repo: "{{ resources_git_url }}"
     dest: "{{ tempdir.path }}/checkout"
     version: "{{ revision }}"
     force: yes
@@ -81,7 +138,7 @@
     key_file: "{{ git_deploy_key_path }}"
     accept_hostkey: yes
     single_branch: yes
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - resources
     - deploy
@@ -94,7 +151,7 @@
     remote_src: yes
     owner: "{{ fivem_user }}"
     group: "{{ fivem_group }}"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - resources
     - deploy
@@ -104,6 +161,7 @@
   file:
     path: "{{ server_data_folder }}/resources"
     state: absent
+  when: deployment_needed
   tags:
     - resources
     - deploy
@@ -116,7 +174,7 @@
     owner: "{{ fivem_user }}"
     group: "{{ fivem_group }}"
     remote_src: yes
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - resources
     - deploy
@@ -127,7 +185,7 @@
     src: "../config/ox.cfg.j2"
     dest: "{{ server_data_folder }}/ox.cfg"
     mode: "0644"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - config
     - deploy
@@ -138,7 +196,7 @@
     src: "../config/permissions.cfg.j2"
     dest: "{{ server_data_folder }}/permissions.cfg"
     mode: "0644"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - config
     - deploy
@@ -149,7 +207,7 @@
     src: "../config/server.cfg.j2"
     dest: "{{ server_data_folder }}/server.cfg"
     mode: "0644"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - config
     - deploy
@@ -160,7 +218,7 @@
     src: "config.json.j2"
     dest: "{{ server_data_folder }}/../default/config.json"
     mode: "0644"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - config
     - deploy
@@ -170,17 +228,17 @@
   file:
     path: "{{ tempdir.path }}"
     state: absent
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - resources
     - deploy
     - deploy_data
 
-- name: Remove temporary directory
+- name: Remove cache directory
   file:
     path: "{{ server_data_folder }}/cache"
     state: absent
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - resources
     - deploy
@@ -193,7 +251,7 @@
     mode: "0644"
     owner: "{{ fivem_user }}"
     group: "{{ fivem_group }}"
-  when: git_repo_data | length > 0
+  when: resources_git_url | length > 0 and deployment_needed
   tags:
     - config
     - deploy
@@ -208,8 +266,22 @@
     group: "{{ fivem_group }}"
     recurse: yes
     mode: "0755"
+  when: deployment_needed
   tags:
     - resources
     - deploy
     - deploy_data
     - config
+
+- name: Save deployed SHA
+  copy:
+    content: "{{ remote_sha }}"
+    dest: "{{ server_data_folder }}/.deployed_sha"
+    mode: "0644"
+    owner: "{{ fivem_user }}"
+    group: "{{ fivem_group }}"
+  when: deployment_needed and remote_sha is defined
+  tags:
+    - resources
+    - deploy
+    - deploy_data

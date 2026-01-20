@@ -20,6 +20,4 @@ galaxy_info:
     - "deploy"
     - "git"
 
-dependencies:
-  - role: fivem_service
-  - role: fivem_database
+dependencies: []

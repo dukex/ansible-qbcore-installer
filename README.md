@@ -14,16 +14,16 @@ Comprehensive Ansible collection for deploying and managing **FiveM** game serve
 
 ## Included Roles
 
-| Role | Description |
-|------|-------------|
-| `fivem_common` | Base system setup - user, group, directories, dependencies |
-| `fivem_firewall` | UFW firewall configuration |
-| `fivem_nginx` | Nginx reverse proxy with TCP/UDP stream support |
-| `fivem_runtime` | FiveM artifact download and version management |
-| `fivem_service` | Systemd service setup |
-| `fivem_tuning` | System performance optimization |
-| `fivem_database` | MariaDB database installation and configuration |
-| `fivem_deploy` | Git-based server data deployment |
+| Role             | Description                                                |
+| ---------------- | ---------------------------------------------------------- |
+| `fivem_common`   | Base system setup - user, group, directories, dependencies |
+| `fivem_firewall` | UFW firewall configuration                                 |
+| `fivem_nginx`    | Nginx reverse proxy with TCP/UDP stream support            |
+| `fivem_runtime`  | FiveM artifact download and version management             |
+| `fivem_service`  | Systemd service setup                                      |
+| `fivem_tuning`   | System performance optimization                            |
+| `fivem_database` | MariaDB database installation and configuration            |
+| `fivem_deploy`   | Git-based server data deployment                           |
 
 ## Quick Start
 
@@ -87,7 +87,7 @@ Create a playbook `deploy.yml`:
     - role: dukex.fivem.fivem_deploy
       tags: [deploy]
       vars:
-        git_repo_data: "git@github.com:your-org/server-data.git"
+        resources_git_url: "git@github.com:your-org/server-data.git"
 ```
 
 Deploy:
@@ -154,7 +154,7 @@ database_password: "changeme"
 ### fivem_deploy
 
 ```yaml
-git_repo_data: ""
+resources_git_url: ""
 revision: "main"
 ```
 

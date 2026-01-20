@@ -17,7 +17,7 @@ Deploys FiveM server data from a Git repository with automatic SSH key generatio
 
 ```yaml
 server_data_folder: "/opt/fivem/txData/game"
-git_repo_data: ""  # Required - Git repository URL
+resources_git_url: "" # Required - Git repository URL
 revision: "main"
 git_deploy_key_path: "/opt/fivem/fivem_repo_key"
 database_name: "fivem_server"
@@ -38,9 +38,9 @@ database_port: 3306
   roles:
     - role: dukex.fivem.fivem_deploy
       vars:
-        git_repo_data: "git@gitlab.com:yourorg/server-data.git"
+        resources_git_url: "git@gitlab.com:yourorg/server-data.git"
         revision: "production"
-        server_domain: "myserver.example.com"
+        fivem_nginx_domain: "myserver.example.com"
 ```
 
 ## SSH Key Generation

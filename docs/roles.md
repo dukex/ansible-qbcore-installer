@@ -4,16 +4,16 @@
 
 The dukex.fivem collection provides eight modular roles for deploying FiveM game servers:
 
-| Role | Description |
-|------|-------------|
-| `fivem_common` | Base system setup - user, group, directories, dependencies |
-| `fivem_firewall` | UFW firewall configuration |
-| `fivem_nginx` | Nginx reverse proxy with TCP/UDP stream support |
-| `fivem_runtime` | FiveM artifact download and version management |
-| `fivem_service` | Systemd service setup |
-| `fivem_tuning` | System performance optimization |
-| `fivem_database` | MariaDB database installation and configuration |
-| `fivem_deploy` | Git-based server data deployment |
+| Role             | Description                                                |
+| ---------------- | ---------------------------------------------------------- |
+| `fivem_common`   | Base system setup - user, group, directories, dependencies |
+| `fivem_firewall` | UFW firewall configuration                                 |
+| `fivem_nginx`    | Nginx reverse proxy with TCP/UDP stream support            |
+| `fivem_runtime`  | FiveM artifact download and version management             |
+| `fivem_service`  | Systemd service setup                                      |
+| `fivem_tuning`   | System performance optimization                            |
+| `fivem_database` | MariaDB database installation and configuration            |
+| `fivem_deploy`   | Git-based server data deployment                           |
 
 ## Role Dependencies
 
@@ -124,7 +124,7 @@ Configures Nginx as a reverse proxy for FiveM with TCP/UDP stream support and Cl
 ```yaml
 fivem_nginx_domain: "example.com"
 fivem_nginx_public_port: 30120
-fivem_server_port: 30120
+fivem_server_port: 30122
 fivem_txadmin_port: 40120
 fivem_nginx_cache_path: "/var/cache/nginx/fivem"
 fivem_nginx_cache_size: "20g"
@@ -193,6 +193,7 @@ fivem_group: "fivem"
 ### Version Tracking
 
 The role writes the artifact URL to `.version` file in the server path. On subsequent runs:
+
 - If the URL matches, no download occurs
 - If the URL differs, the new artifact is downloaded
 - Set `fivem_force_download_artifacts: true` to force re-download
@@ -269,6 +270,7 @@ fivem_user: "fivem"
 ### Applied Tuning
 
 **File Descriptors:**
+
 ```
 fivem  soft  nofile  65536
 fivem  hard  nofile  65536
@@ -277,6 +279,7 @@ fivem  hard  nproc   32768
 ```
 
 **Network Tuning:**
+
 ```
 net.core.somaxconn = 65535
 net.ipv4.tcp_max_syn_backlog = 65535
@@ -360,7 +363,7 @@ Deploys FiveM server data from a Git repository with automatic SSH key generatio
 
 ```yaml
 server_data_folder: "/opt/fivem/txData/game"
-git_repo_data: ""
+resources_git_url: ""
 revision: "main"
 git_deploy_key_path: "/opt/fivem/fivem_repo_key"
 database_name: "fivem_server"
@@ -396,14 +399,14 @@ On first run, the role generates an Ed25519 SSH key and displays the public key.
   vars:
     fivem_domain: "myserver.example.com"
     fivem_artifact_download_url: "https://runtime.fivem.net/.../fx.tar.xz"
-    git_repo_data: "git@gitlab.com:yourorg/server-data.git"
+    resources_git_url: "git@gitlab.com:yourorg/server-data.git"
 
   pre_tasks:
     - name: Validate credentials
       assert:
         that:
           - mariadb_root_password is defined
-          - git_repo_data is defined
+          - resources_git_url is defined
         fail_msg: "Required variables not provided"
 
   roles:
@@ -436,7 +439,7 @@ On first run, the role generates an Ed25519 SSH key and displays the public key.
     - role: dukex.fivem.fivem_deploy
       tags: [deploy]
       vars:
-        server_domain: "{{ fivem_domain }}"
+        fivem_nginx_domain: "{{ fivem_domain }}"
 
   post_tasks:
     - name: Server ready

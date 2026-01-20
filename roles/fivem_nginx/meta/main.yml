@@ -19,6 +19,4 @@ galaxy_info:
     - proxy
     - cloudflare
 
-dependencies:
-  - role: fivem_common
-  - role: fivem_firewall
+dependencies: []

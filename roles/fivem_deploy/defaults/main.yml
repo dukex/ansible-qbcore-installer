@@ -2,7 +2,7 @@
 # Defaults for fivem_server_deploy
 
 server_data_folder: "/opt/fivem/txData/game"
-git_repo_data: ""
+resources_git_url: ""
 revision: "main"
 git_deploy_key: ""
 git_deploy_key_path: "/opt/fivem/fivem_repo_key"

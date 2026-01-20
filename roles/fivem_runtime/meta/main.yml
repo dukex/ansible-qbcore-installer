@@ -18,5 +18,4 @@ galaxy_info:
     - runtime
     - artifacts
 
-dependencies:
-  - role: fivem_common
+dependencies: []

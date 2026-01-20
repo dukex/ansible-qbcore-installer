@@ -18,6 +18,4 @@ galaxy_info:
     - service
     - systemd
 
-dependencies:
-  - role: fivem_common
-  - role: fivem_runtime
+dependencies: []
