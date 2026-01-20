@@ -1,4 +1,4 @@
-# gameserver.fivem Collection
+# dukex.fivem Collection
 
 Comprehensive Ansible collection for deploying and managing **FiveM** game servers on Debian/Ubuntu Linux systems. This collection provides production-ready, modular roles for complete server setup, database configuration, and flexible deployment.
 
@@ -31,7 +31,7 @@ Comprehensive Ansible collection for deploying and managing **FiveM** game serve
 
 ```bash
 # Install from Galaxy
-ansible-galaxy collection install gameserver.fivem
+ansible-galaxy collection install dukex.fivem
 
 # Or clone for development
 git clone https://github.com/dukex/ansible-fivem-collection.git
@@ -58,33 +58,33 @@ Create a playbook `deploy.yml`:
     fivem_artifact_download_url: "https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/17000-hash/fx.tar.xz"
 
   roles:
-    - role: gameserver.fivem.fivem_common
+    - role: dukex.fivem.fivem_common
       tags: [setup, common]
 
-    - role: gameserver.fivem.fivem_firewall
+    - role: dukex.fivem.fivem_firewall
       tags: [setup, firewall]
 
-    - role: gameserver.fivem.fivem_nginx
+    - role: dukex.fivem.fivem_nginx
       tags: [setup, nginx]
       vars:
         fivem_nginx_domain: "{{ fivem_domain }}"
 
-    - role: gameserver.fivem.fivem_tuning
+    - role: dukex.fivem.fivem_tuning
       tags: [setup, tuning]
 
-    - role: gameserver.fivem.fivem_runtime
+    - role: dukex.fivem.fivem_runtime
       tags: [setup, runtime]
 
-    - role: gameserver.fivem.fivem_service
+    - role: dukex.fivem.fivem_service
       tags: [setup, service]
 
-    - role: gameserver.fivem.fivem_database
+    - role: dukex.fivem.fivem_database
       tags: [database]
       vars:
         mariadb_root_password: "{{ vault_db_root_password }}"
         database_password: "{{ vault_db_password }}"
 
-    - role: gameserver.fivem.fivem_deploy
+    - role: dukex.fivem.fivem_deploy
       tags: [deploy]
       vars:
         git_repo_data: "git@github.com:your-org/server-data.git"
