@@ -24,14 +24,3 @@
   tags:
     - database
     - database_configuration
-
-- name: Display MariaDB setup completion message
-  debug:
-    msg: |
-      MariaDB Setup Complete!
-      =======================
-      Root User: {{ mariadb_root_user }}
-      Database: {{ database_name }}
-      Database User: {{ database_user }}
-      Bind Address: {{ mariadb_bind_address }}
-      Port: {{ mariadb_port }}

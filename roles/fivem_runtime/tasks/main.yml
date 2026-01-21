@@ -66,7 +66,6 @@
     owner: "{{ fivem_user }}"
     group: "{{ fivem_group }}"
     recurse: yes
-    mode: "0755"
   when: artifact_needs_update | bool
   tags:
     - runtime
@@ -88,16 +87,5 @@
     path: "{{ fivem_tmp_path }}/fx.tar.xz"
     state: absent
   when: artifact_needs_update | bool
-  tags:
-    - runtime
-
-- name: Display version file status
-  debug:
-    msg: |
-      FiveM Artifact Status:
-      Current URL: {{ fivem_artifact_download_url }}
-      Version File Exists: {{ version_file.stat.exists }}
-      Force Download: {{ fivem_force_download_artifacts }}
-      Update Needed: {{ artifact_needs_update }}
   tags:
     - runtime

@@ -6,10 +6,6 @@ upstream fivem_backend {
     server 127.0.0.1:{{ fivem_server_port }};
 }
 
-upstream txadmin_backend {
-    server 127.0.0.1:{{ fivem_txadmin_port }};
-}
-
 proxy_cache_path {{ fivem_nginx_cache_path }} levels=1:2 keys_zone=fivem_assets:48m max_size={{ fivem_nginx_cache_size }} inactive=2h;
 
 # HTTP to HTTPS redirect
@@ -28,8 +24,6 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     server_name {{ fivem_nginx_domain }};
-
-    http2 on;
 
     ssl_certificate /etc/nginx/ssl/fivem.crt;
     ssl_certificate_key /etc/nginx/ssl/fivem.key;

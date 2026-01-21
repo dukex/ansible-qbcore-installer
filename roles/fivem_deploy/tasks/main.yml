@@ -29,16 +29,6 @@
     - deploy
     - deploy_data
 
-- name: Display public key to add to GitLab/GitHub
-  debug:
-    msg: |
-      Add this deploy key to your GitLab/GitHub repository:
-      {{ deploy_public_key.content | b64decode }}
-  when: git_deploy_key | length == 0 and deploy_public_key is defined
-  tags:
-    - deploy
-    - deploy_data
-
 - name: Write deploy key for private repo (optional)
   copy:
     content: "{{ git_deploy_key }}\n"
@@ -103,14 +93,6 @@
 - name: Set deployment needed fact
   set_fact:
     deployment_needed: "{{ not deployed_sha_file.stat.exists or (last_deployed_sha.content | default('') | b64decode | trim) != (remote_sha | default('')) }}"
-  tags:
-    - resources
-    - deploy
-    - deploy_data
-
-- name: Display deployment status
-  debug:
-    msg: "{{ 'Deployment needed - version changed or first deploy' if deployment_needed else 'Skipping deployment - version unchanged (' + (remote_sha | default('unknown')) + ')' }}"
   tags:
     - resources
     - deploy
